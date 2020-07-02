@@ -530,15 +530,15 @@ func set_cur_map(next_key_mode):
 		for map in maps:
 			if map.mode == next_key_mode.mode:
 				cur_map = map
-				match cur_map.mode:
-					GLOBAL_MODE:
-						print("GloalMap")
-					ESC_MODE:
-						print("EscMap")
-					CONTROL_X_MODE:
-						print("CtrlXMap")
-					CONTROL_C_MODE:
-						print("CtrlCMap")
+#				match cur_map.mode:
+#					GLOBAL_MODE:
+#						print("GloalMap")
+#					ESC_MODE:
+#						print("EscMap")
+#					CONTROL_X_MODE:
+#						print("CtrlXMap")
+#					CONTROL_C_MODE:
+#						print("CtrlCMap")
 
 func is_focus_text_editor():
 	var owner = base.get_focus_owner()
