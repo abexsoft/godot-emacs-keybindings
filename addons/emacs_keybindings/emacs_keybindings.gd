@@ -3,18 +3,16 @@ extends EditorPlugin
 
 enum {GLOBAL_MODE, CONTROL_X_MODE, CONTROL_C_MODE, ESC_MODE}
 
-var global_map = GlobalMap.new()
-var esc_map = EscMap.new()
-var ctrlx_map = ControlXMap.new()
-var ctrlc_map = ControlCMap.new()
-var maps = [global_map, esc_map, ctrlx_map, ctrlc_map]
 
 var cur_key_mode = KeyMode.new()
-var cur_map = global_map
+var cur_map
+var maps
 
 var recursive_input_stopper = false
 
 var base
+var script_editor
+var tab_container
 
 class EmacsFunction extends EditorPlugin:
 	var base
@@ -330,6 +328,7 @@ class EmacsFunction extends EditorPlugin:
 class KeyMode:
 	var mode setget set_mode, get_mode
 	var selection_active setget  set_selection_active, get_selection_active
+	var status_bar 
 	
 	func _init():
 		mode = GLOBAL_MODE
@@ -370,7 +369,6 @@ class GlobalMap extends KeyMap:
 
 	func _init():
 		mode = GLOBAL_MODE
-
 		
 	func get_mode():
 		return mode
@@ -378,9 +376,12 @@ class GlobalMap extends KeyMap:
 	func input(event, key_mode):
 		#print("Global" + str(event.scancode))
 		#print("Global" + str(event.unicode))
+
+		key_mode.status_bar.text = ""
 		
 		if check_key_event(event, false, true, false, KEY_G):
 			key_mode = emacs_func.cancel(event, key_mode)
+			key_mode.status_bar.text = "Quit"
 		elif check_key_event(event, false, true, false, KEY_N):
 			key_mode = emacs_func.previous_line(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_P):
@@ -469,7 +470,7 @@ class EscMap  extends KeyMap:
 		elif check_key_event_unicode(event, true, false, false, KEY_GREATER):
 			key_mode = emacs_func.end_of_buffer(event, key_mode)
 		else:
-			print("ESC-" + char(event.unicode) + " is undefined.")
+			key_mode.status_bar.text = "ESC-" + char(event.unicode) + " is undefined."
 			event.pressed = false
 			key_mode.mode = GLOBAL_MODE
 			key_mode.selection_active = false
@@ -499,7 +500,7 @@ class ControlXMap extends KeyMap:
 		elif check_key_event(event, false, false, false, KEY_U):
 			key_mode = emacs_func.undo(event, key_mode)
 		else:
-			print("CtrlX-" + char(event.unicode) + " is undefined.")
+			key_mode.status_bar.text = "C-x-" + char(event.unicode) + " is undefined."
 			event.pressed = false
 			key_mode.mode = GLOBAL_MODE
 			key_mode.selection_active = false
@@ -523,22 +524,65 @@ class ControlCMap extends KeyMap:
 		return key_mode
 		
 func _enter_tree():
-	base = get_editor_interface().get_base_control()
+	pass
+	
+func _exit_tree():
+	free_status_bar()
 
+func _ready():
+	base = get_editor_interface().get_base_control()
+	script_editor = get_editor_interface().get_script_editor()
+	var main = script_editor.get_child(0)
+	var script_split = main.get_child(1)
+	tab_container = script_split.get_child(1)
+	tab_container.connect("tab_changed", self, "tab_changed")
+	set_status_bar()
+	var global_map = GlobalMap.new()
+	var esc_map = EscMap.new()
+	var ctrlx_map = ControlXMap.new()
+	var ctrlc_map = ControlCMap.new()
+	maps = [global_map, esc_map, ctrlx_map, ctrlc_map]
+	cur_map = global_map	
+
+
+func set_status_bar():
+	free_status_bar()
+	cur_key_mode.status_bar = Label.new()
+	cur_key_mode.status_bar.text = ""	
+	var se = tab_container.get_current_tab_control()
+	if se != null:
+		se.add_child(cur_key_mode.status_bar)
+
+
+
+# It's difficult to add into editor's status_bar, 
+# because there are differences between editor's types.
+#	var editor_box = se.get_child(0)
+#	var code_editor = editor_box.get_child(0)
+#	var status_bar = code_editor.get_child(2)
+
+func free_status_bar():
+	if cur_key_mode.status_bar != null:
+		cur_key_mode.status_bar.free()
+
+func tab_changed(id):
+	set_status_bar()
+
+	
 func set_cur_map(next_key_mode):
 	if cur_map.mode != next_key_mode.mode:
 		for map in maps:
 			if map.mode == next_key_mode.mode:
 				cur_map = map
-#				match cur_map.mode:
-#					GLOBAL_MODE:
-#						print("GloalMap")
-#					ESC_MODE:
-#						print("EscMap")
-#					CONTROL_X_MODE:
-#						print("CtrlXMap")
-#					CONTROL_C_MODE:
-#						print("CtrlCMap")
+				match cur_map.mode:
+					GLOBAL_MODE:
+						pass
+					ESC_MODE:
+						cur_key_mode.status_bar.text = "ESC-"
+					CONTROL_X_MODE:
+						cur_key_mode.status_bar.text = "C-x-"
+					CONTROL_C_MODE:
+						cur_key_mode.status_bar.text = "C-c-"
 
 func is_focus_text_editor():
 	var owner = base.get_focus_owner()
@@ -556,11 +600,9 @@ func _input(event):
 		return
 	if event.scancode == KEY_CONTROL or event.scancode == KEY_SHIFT or event.scancode == KEY_ALT:
 		return
-		
+				
+#	set_mode_label()
 	recursive_input_stopper = true
 	cur_key_mode = cur_map.input(event, cur_key_mode)
 	set_cur_map(cur_key_mode)
 	recursive_input_stopper = false
-
-func _exit_tree():
-	pass
