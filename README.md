@@ -46,7 +46,8 @@ Command means:
 |Command | Desc |
 |--------|-------|
 | `C-s`  | Call godot's search window.|
-| `C-r`  | Call godot's replace window. (original shortcut command)|
+| `C-r`  | Call godot's search window.|
+| `M-%`  | Call godot's replace window.|
 
 ### Error Recovery
 |Command  | Desc |

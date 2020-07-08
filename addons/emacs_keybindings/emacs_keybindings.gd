@@ -238,6 +238,13 @@ class EmacsFunction extends EditorPlugin:
 		event.scancode = KEY_F
 		return key_mode
 
+	func replace(event, key_mode):
+		event.shift = false
+		event.control = true
+		event.alt = false
+		event.scancode = KEY_R
+		return key_mode
+
 	func save_buffer(event, key_mode):
 		event.shift = false
 		event.control = true
@@ -434,6 +441,10 @@ class GlobalMap extends KeyMap:
 			key_mode = emacs_func.undo(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_S):
 			key_mode = emacs_func.search(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_R):
+			key_mode = emacs_func.search(event, key_mode)			
+		elif check_key_event_unicode(event, true, false, true, KEY_PERCENT):
+			key_mode = emacs_func.replace(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_ESCAPE):
 			key_mode = emacs_func.escape_prefix(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_X):
@@ -455,7 +466,7 @@ class EscMap  extends KeyMap:
 		return mode
 	
 	func input(event, key_mode):
-		#print("Esc" + str(event.unicode))
+#		print("Esc" + str(event.unicode))
 
 		if check_key_event(event, false, true, false, KEY_G):
 			key_mode = emacs_func.cancel(event, key_mode)
@@ -465,6 +476,8 @@ class EscMap  extends KeyMap:
 			key_mode = emacs_func.scroll_down_command(event, key_mode)			
 		elif check_key_event(event, false, false, false, KEY_G):
 			key_mode = emacs_func.goto(event, key_mode)
+		elif check_key_event_unicode(event, true, false, false, KEY_PERCENT):
+			key_mode = emacs_func.replace(event, key_mode)
 		elif check_key_event_unicode(event, true, false, false, KEY_LESS):
 			key_mode = emacs_func.beginning_of_buffer(event, key_mode)
 		elif check_key_event_unicode(event, true, false, false, KEY_GREATER):
@@ -567,7 +580,6 @@ func free_status_bar():
 
 func tab_changed(id):
 	set_status_bar()
-
 	
 func set_cur_map(next_key_mode):
 	if cur_map.mode != next_key_mode.mode:
