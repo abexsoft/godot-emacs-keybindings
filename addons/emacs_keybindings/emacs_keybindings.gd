@@ -1,8 +1,7 @@
 tool
 extends EditorPlugin
 
-enum {GLOBAL_MODE, CONTROL_X_MODE, CONTROL_C_MODE, ESC_MODE}
-
+enum {GLOBAL_MODE, CONTROL_X_MODE, CONTROL_C_MODE, ESC_MODE, SELECT_BUFFER_MODE}
 
 var cur_key_mode = KeyMode.new()
 var cur_map
@@ -13,6 +12,17 @@ var recursive_input_stopper = false
 var base
 var script_editor
 var tab_container
+var script_list
+
+class KeyMode:
+	var mode
+	var selection_active
+	var status_bar
+	var script_list
+	
+	func _init():
+		mode = GLOBAL_MODE
+		selection_active = false
 
 class EmacsFunction extends EditorPlugin:
 	var base
@@ -20,44 +30,66 @@ class EmacsFunction extends EditorPlugin:
 	func _init():
 		base = get_editor_interface().get_base_control()
 		
-	func previous_line(event, key_mode):
-		if key_mode.selection_active:
-			event.shift = true			
-			event.control = false
-			event.alt = false
-			event.scancode = KEY_DOWN
-			event.pressed = true
-		else:
-			event.control = false
-			event.alt = false
-			event.scancode = KEY_DOWN
-			event.pressed = true
-		return key_mode
-		
 	func next_line(event, key_mode):
-		if key_mode.selection_active:
-			event.control = false
-			event.shift = true
-			event.alt = false			
-			event.scancode = KEY_UP
-			event.pressed = true
+		if key_mode.mode == SELECT_BUFFER_MODE:
+			event.pressed = false
+			var new_event = InputEventKey.new()
+			new_event.shift = true
+			new_event.control = true
+			new_event.alt = false
+			new_event.scancode = KEY_PERIOD
+			new_event.pressed = true
+			Input.parse_input_event(new_event)
+			return key_mode
 		else:
-			event.control = false
-			event.alt = false			
-			event.scancode = KEY_UP
-			event.pressed = true
-		return key_mode
+			if key_mode.selection_active:
+				event.shift = true
+				event.control = false
+				event.alt = false
+				event.scancode = KEY_DOWN
+				event.pressed = true
+			else:
+				event.control = false
+				event.alt = false
+				event.scancode = KEY_DOWN
+				event.pressed = true
+			return key_mode
+		
+	func previous_line(event, key_mode):
+		if key_mode.mode == SELECT_BUFFER_MODE:
+			event.pressed = false
+			var new_event = InputEventKey.new()
+			new_event.shift = true
+			new_event.control = true
+			new_event.alt = false
+			new_event.scancode = KEY_COMMA
+			new_event.pressed = true
+			Input.parse_input_event(new_event)
+			return key_mode
+		else:
+			if key_mode.selection_active:
+				event.control = false
+				event.shift = true
+				event.alt = false
+				event.scancode = KEY_UP
+				event.pressed = true
+			else:
+				event.control = false
+				event.alt = false
+				event.scancode = KEY_UP
+				event.pressed = true
+			return key_mode
 		
 	func backward_char(event, key_mode):
 		if key_mode.selection_active:
 			event.control = false
 			event.shift = true
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_LEFT
 			event.pressed = true
 		else:
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_LEFT
 			event.pressed = true
 		return key_mode
@@ -66,12 +98,12 @@ class EmacsFunction extends EditorPlugin:
 		if key_mode.selection_active:
 			event.control = false
 			event.shift = true
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_RIGHT
 			event.pressed = true
 		else:
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_RIGHT
 			event.pressed = true
 		return key_mode
@@ -80,12 +112,12 @@ class EmacsFunction extends EditorPlugin:
 		if key_mode.selection_active:
 			event.control = false
 			event.shift = true
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_PAGEUP
 			event.pressed = true
 		else:
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_PAGEUP
 			event.pressed = true
 		key_mode.mode = GLOBAL_MODE
@@ -95,12 +127,12 @@ class EmacsFunction extends EditorPlugin:
 		if key_mode.selection_active:
 			event.control = false
 			event.shift = true
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_PAGEDOWN
 			event.pressed = true
 		else:
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_PAGEDOWN
 			event.pressed = true
 		key_mode.mode = GLOBAL_MODE
@@ -113,44 +145,54 @@ class EmacsFunction extends EditorPlugin:
 		return key_mode
 
 	func cancel(event, key_mode):
-		event.scancode = KEY_ESCAPE
-		key_mode.mode = GLOBAL_MODE
-		key_mode.selection_active = false
-		var editor = base.get_focus_owner()
-		editor.deselect()
-		return key_mode
-		
+		key_mode.status_bar.text = "Quit"
+		if key_mode.mode == SELECT_BUFFER_MODE:
+			key_mode.mode = GLOBAL_MODE
+			return key_mode
+		else:
+			event.scancode = KEY_ESCAPE
+			key_mode.mode = GLOBAL_MODE
+			key_mode.selection_active = false
+			var editor = base.get_focus_owner()
+			editor.deselect()
+			return key_mode
+					
 	func delete_backward_char(event, key_mode):
 		event.control = false
-		event.alt = false		
+		event.alt = false
 		event.scancode = KEY_BACKSPACE
 		event.pressed = true
 		return key_mode
 		
 	func delete_char(event, key_mode):
 		event.control = false
-		event.alt = false				
+		event.alt = false
 		event.scancode = KEY_DELETE
 		event.pressed = true
 		return key_mode
 		
 	func tab(event, key_mode):
 		event.control = false
-		event.alt = false				
+		event.alt = false
 		event.scancode = KEY_TAB
 		event.pressed = true
 		return key_mode
 		
 	func enter(event, key_mode):
-		event.control = false
-		event.alt = false				
-		event.scancode = KEY_ENTER
-		event.pressed = true
-		return key_mode
+		if key_mode.mode == SELECT_BUFFER_MODE:
+			key_mode.mode = GLOBAL_MODE
+			event.pressed = false
+			return key_mode
+		else:
+			event.control = false
+			event.alt = false
+			event.scancode = KEY_ENTER
+			event.pressed = true
+			return key_mode
 		
 	func comment(event, key_mode):
 		event.control = true
-		event.alt = false				
+		event.alt = false
 		event.scancode = KEY_K
 		event.pressed = true
 		return key_mode
@@ -162,30 +204,30 @@ class EmacsFunction extends EditorPlugin:
 			#event.pressed = false
 			event.shift = true
 			event.control = false
-			event.alt = false							
+			event.alt = false
 			event.scancode = KEY_HOME
 			event.pressed = true
 		else:
 			#var editor = base.get_focus_owner()		
 			#editor.cursor_set_column(0, false)
 			#event.pressed = false
-			event.shift = false			
+			event.shift = false
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_HOME
 			event.pressed = true
 		return key_mode
 		
 	func move_end_of_line(event, key_mode):
 		if key_mode.selection_active:
-			event.shift = true			
+			event.shift = true
 			event.control = false
-			event.alt = false			
+			event.alt = false
 			event.scancode = KEY_END
 			event.pressed = true
 		else:
 			event.control = false
-			event.alt = false					
+			event.alt = false
 			event.scancode = KEY_END
 			event.pressed = true
 		return key_mode
@@ -194,13 +236,13 @@ class EmacsFunction extends EditorPlugin:
 		event.pressed = false
 		var new_event = InputEventKey.new()
 		new_event.shift = true
-		new_event.alt = false				
+		new_event.alt = false
 		new_event.scancode = KEY_END
 		new_event.pressed = true
 		Input.parse_input_event(new_event)
 		new_event = InputEventKey.new()
 		new_event.control = true
-		new_event.alt = false				
+		new_event.alt = false
 		new_event.scancode = KEY_X
 		new_event.pressed = true
 		Input.parse_input_event(new_event)
@@ -275,7 +317,7 @@ class EmacsFunction extends EditorPlugin:
 	func beginning_of_buffer(event, key_mode):
 		event.control = true
 		event.shift = false
-		event.alt = false						
+		event.alt = false
 		event.scancode = KEY_HOME
 		event.pressed = true
 		key_mode.mode = GLOBAL_MODE
@@ -284,7 +326,7 @@ class EmacsFunction extends EditorPlugin:
 	func mark_whole_buffer(event, key_mode):
 		event.shift = false
 		event.control = true
-		event.alt = false						
+		event.alt = false
 		event.scancode = KEY_A
 		event.pressed = true
 		key_mode.mode = GLOBAL_MODE
@@ -293,7 +335,7 @@ class EmacsFunction extends EditorPlugin:
 	func end_of_buffer(event, key_mode):
 		event.shift = false
 		event.control = true
-		event.alt = false				
+		event.alt = false
 		event.scancode = KEY_END
 		event.pressed = true
 		key_mode.mode = GLOBAL_MODE
@@ -302,10 +344,16 @@ class EmacsFunction extends EditorPlugin:
 	func goto(event, key_mode):
 		event.shift = false
 		event.control = true
-		event.alt = false		
+		event.alt = false
 		event.scancode = KEY_L
 		event.pressed = true
 		key_mode.mode = GLOBAL_MODE
+		return key_mode
+
+	func switch_buffer(event, key_mode):
+		event.pressed = false
+		key_mode.script_list.grab_focus()
+		key_mode.mode = SELECT_BUFFER_MODE
 		return key_mode
 		
 	func escape_prefix(event, key_mode):
@@ -319,7 +367,7 @@ class EmacsFunction extends EditorPlugin:
 	func ctrl_x_prefix(event, key_mode):
 		event.control = false
 		event.shift = false
-		event.alt = false	
+		event.alt = false
 		event.pressed = false
 		key_mode.mode = CONTROL_X_MODE
 		return key_mode
@@ -327,31 +375,11 @@ class EmacsFunction extends EditorPlugin:
 	func ctrl_c_prefix(event, key_mode):
 		event.control = false
 		event.shift = false
-		event.alt = false				
+		event.alt = false
 		event.pressed = false
 		key_mode.mode = CONTROL_C_MODE
 		return key_mode
 
-class KeyMode:
-	var mode setget set_mode, get_mode
-	var selection_active setget  set_selection_active, get_selection_active
-	var status_bar 
-	
-	func _init():
-		mode = GLOBAL_MODE
-		selection_active = false
-		
-	func set_mode(a_mode):
-		mode = a_mode
-		
-	func get_mode():
-		return mode
-		
-	func set_selection_active(a_bool):
-		selection_active = a_bool
-		
-	func get_selection_active():
-		return selection_active
 
 class KeyMap:
 	var emacs_func
@@ -388,11 +416,12 @@ class GlobalMap extends KeyMap:
 		
 		if check_key_event(event, false, true, false, KEY_G):
 			key_mode = emacs_func.cancel(event, key_mode)
-			key_mode.status_bar.text = "Quit"
+		elif check_key_event(event, false, false, false, KEY_ENTER):
+			key_mode = emacs_func.enter(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_N):
-			key_mode = emacs_func.previous_line(event, key_mode)
-		elif check_key_event(event, false, true, false, KEY_P):
 			key_mode = emacs_func.next_line(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_P):
+			key_mode = emacs_func.previous_line(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_B):
 			key_mode = emacs_func.backward_char(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_F):
@@ -410,7 +439,7 @@ class GlobalMap extends KeyMap:
 		elif check_key_event_unicode(event, true, false, true, KEY_LESS):
 			key_mode = emacs_func.beginning_of_buffer(event, key_mode)
 		elif check_key_event_unicode(event, true, false, true, KEY_GREATER):
-			key_mode = emacs_func.end_of_buffer(event, key_mode)			
+			key_mode = emacs_func.end_of_buffer(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_H):
 			key_mode = emacs_func.delete_backward_char(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_D):
@@ -422,7 +451,7 @@ class GlobalMap extends KeyMap:
 		elif check_key_event(event, false, true, false, KEY_M):
 			key_mode = emacs_func.enter(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_SEMICOLON):
-			key_mode = emacs_func.comment(event, key_mode)			
+			key_mode = emacs_func.comment(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_A):
 			key_mode = emacs_func.move_begginning_of_line(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_E):
@@ -442,7 +471,7 @@ class GlobalMap extends KeyMap:
 		elif check_key_event(event, false, true, false, KEY_S):
 			key_mode = emacs_func.search(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_R):
-			key_mode = emacs_func.search(event, key_mode)			
+			key_mode = emacs_func.search(event, key_mode)
 		elif check_key_event_unicode(event, true, false, true, KEY_PERCENT):
 			key_mode = emacs_func.replace(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_ESCAPE):
@@ -473,7 +502,7 @@ class EscMap  extends KeyMap:
 		elif check_key_event(event, false, false, false, KEY_W):
 			key_mode = emacs_func.kill_ring_save(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_V):
-			key_mode = emacs_func.scroll_down_command(event, key_mode)			
+			key_mode = emacs_func.scroll_down_command(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_G):
 			key_mode = emacs_func.goto(event, key_mode)
 		elif check_key_event_unicode(event, true, false, false, KEY_PERCENT):
@@ -506,6 +535,8 @@ class ControlXMap extends KeyMap:
 			key_mode = emacs_func.cancel(event, key_mode)
 		elif check_key_event(event, false, true, false, KEY_S):
 			key_mode = emacs_func.save_buffer(event, key_mode)
+		elif check_key_event(event, false, false, false, KEY_B):
+			key_mode = emacs_func.switch_buffer(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_S):
 			key_mode = emacs_func.save_some_buffers(event, key_mode)
 		elif check_key_event(event, false, false, false, KEY_H):
@@ -535,6 +566,32 @@ class ControlCMap extends KeyMap:
 		key_mode.selection_active = false
 			
 		return key_mode
+
+class SelectBufferMap extends KeyMap:
+	var mode
+	
+	func _init():
+		mode = SELECT_BUFFER_MODE
+
+	func input(event, key_mode):
+		#print("SBM" + str(event.unicode))
+
+		if check_key_event(event, false, true, false, KEY_G):
+			key_mode = emacs_func.cancel(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_N):
+			key_mode = emacs_func.next_line(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_P):
+			key_mode = emacs_func.previous_line(event, key_mode)
+		elif check_key_event(event, false, false, false, KEY_ENTER):
+			key_mode = emacs_func.enter(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_J):
+			key_mode = emacs_func.enter(event, key_mode)
+		elif check_key_event(event, false, true, false, KEY_M):
+			key_mode = emacs_func.enter(event, key_mode)
+		else:
+			event.pressed = false
+			
+		return key_mode
 		
 func _enter_tree():
 	pass
@@ -550,18 +607,27 @@ func _ready():
 	tab_container = script_split.get_child(1)
 	tab_container.connect("tab_changed", self, "tab_changed")
 	set_status_bar()
+	var list_split = script_split.get_child(0)
+	var scripts_vbox = list_split.get_child(0)
+	script_list = scripts_vbox.get_child(1)
+	cur_key_mode.script_list = script_list
+	
 	var global_map = GlobalMap.new()
 	var esc_map = EscMap.new()
 	var ctrlx_map = ControlXMap.new()
 	var ctrlc_map = ControlCMap.new()
-	maps = [global_map, esc_map, ctrlx_map, ctrlc_map]
-	cur_map = global_map	
+	var sb_map = SelectBufferMap.new()
+	maps = [global_map, esc_map, ctrlx_map, ctrlc_map, sb_map]
+	cur_map = global_map
 
 
 func set_status_bar():
 	free_status_bar()
 	cur_key_mode.status_bar = Label.new()
-	cur_key_mode.status_bar.text = ""	
+	if cur_key_mode.mode == SELECT_BUFFER_MODE:
+		cur_key_mode.status_bar.text = "Selecting Buffer Mode"
+	else:
+		cur_key_mode.status_bar.text = ""
 	var se = tab_container.get_current_tab_control()
 	if se != null:
 		se.add_child(cur_key_mode.status_bar)
@@ -595,6 +661,8 @@ func set_cur_map(next_key_mode):
 						cur_key_mode.status_bar.text = "C-x-"
 					CONTROL_C_MODE:
 						cur_key_mode.status_bar.text = "C-c-"
+					SELECT_BUFFER_MODE:
+						cur_key_mode.status_bar.text = "Selecting Buffer Mode"
 
 func is_focus_text_editor():
 	var owner = base.get_focus_owner()
@@ -604,9 +672,14 @@ func is_focus_text_editor():
 		return false
 
 func _input(event):
-	if !is_focus_text_editor():
-		return
+	#var owner = base.get_focus_owner()
+	#print(owner)
+	#print(event.scancode)
 	if recursive_input_stopper:
+		return
+	if is_focus_text_editor() or cur_key_mode.mode == SELECT_BUFFER_MODE:
+		pass
+	else:
 		return
 	if !(event is InputEventKey) or !event.pressed:
 		return
