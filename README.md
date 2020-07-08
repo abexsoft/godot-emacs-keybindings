@@ -46,7 +46,8 @@ Command means:
 |Command | Desc |
 |--------|-------|
 | `C-s`  | Call godot's search window.|
-| `C-r`  | Call godot's replace window. (original shortcut command)|
+| `C-r`  | Call godot's search window.|
+| `M-%`  | Call godot's replace window.|
 
 ### Error Recovery
 |Command  | Desc |
@@ -63,6 +64,21 @@ Command means:
 | `C-x C-s` | Save the current buffer to its file (save-buffer). |
 | `C-x s`   | Save any or all buffers to their files (save-some-buffers).|
 
+### Buffers
+|Command | Desc |
+|--------|------|
+| `C-x b` | Switch into Selecting Buffer Mode. |
+
+### In Selecting Buffer Mode only
+|Command | Desc |
+|--------|------|
+| `C-n` | Switch into next buffer. |
+| `C-p` | Switch into previous buffer. |
+| `C-j` | Select the buffer and leave from Selecting Buffer Mode. |
+| `C-m` | Select the buffer and leave from Selecting Buffer Mode. |
+| `enter` | Select the buffer and leave from Selecting Buffer Mode. |
+| `C-g` | Select the buffer and leave from Selecting Buffer Mode. |
+
 ### Other Commands
 |Command | Desc |
 |--------|------|
@@ -70,6 +86,9 @@ Command means:
 | `C-j` | Enter. |
 | `C-m` | Enter. |
 | `C-;` | Comment out the line. |
+| `C-c` | Switch into 'C-c' mode (passing through next input). |
+
+
 
 ## About conflicts with default key bindings
 Use 'C-c' mode.  
